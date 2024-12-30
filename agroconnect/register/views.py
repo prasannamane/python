@@ -2,7 +2,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.contrib.auth import get_user_model
-from rest_framework import serializers
+from rest_framework import serializers, status
 
 # Get the custom or default user model
 User = get_user_model()
@@ -38,3 +38,14 @@ class RegisterAPIView(APIView):
 
         # If serializer is not valid, return errors
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class UserListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email']  # Specify the fields you want to display
+
+class UserListAPIView(APIView):
+    def get(self, request):
+        users = User.objects.all()  # Fetch all users
+        serializer = UserListSerializer(users, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
