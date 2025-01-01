@@ -1,27 +1,30 @@
-from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.contrib.auth import get_user_model
 from rest_framework import serializers, status
+from .models import UserProfile
 
-# Get the custom or default user model
 User = get_user_model()
 
 class RegisterSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=255)
     password = serializers.CharField(write_only=True)
     email = serializers.EmailField()
+    mobile_number = serializers.CharField(max_length=15)
 
     def validate_username(self, value):
-        # Check if the username already exists
         if User.objects.filter(username=value).exists():
             raise serializers.ValidationError("Username is already taken.")
         return value
 
     def validate_email(self, value):
-        # Check if the email already exists
         if User.objects.filter(email=value).exists():
             raise serializers.ValidationError("Email is already registered.")
+        return value
+
+    def validate_mobile_number(self, value):
+        if len(value) < 10 or len(value) > 15:
+            raise serializers.ValidationError("Invalid mobile number.")
         return value
 
 class RegisterAPIView(APIView):
@@ -40,9 +43,10 @@ class RegisterAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class UserListSerializer(serializers.ModelSerializer):
+    mobile_number = serializers.CharField(source='profile.mobile_number')
     class Meta:
         model = User
-        fields = ['id', 'username', 'email']  # Specify the fields you want to display
+        fields = ['id', 'username', 'email', 'mobile_number']  # Specify the fields you want to display
 
 class UserListAPIView(APIView):
     def get(self, request):
