@@ -2,6 +2,7 @@ from django.urls import path
 from .views import RegisterAPIView, UserListAPIView, UserList, UserCreateAPIView
 from . import views
 
+
 urlpatterns = [
     path('users-list/', UserList.as_view(), name='user-list-data'),
     path('users-store/', UserCreateAPIView.as_view(), name='users-store'),
