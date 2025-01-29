@@ -3,10 +3,12 @@ from rest_framework.views import APIView
 from django.contrib.auth import get_user_model
 from rest_framework import serializers, status
 from .models import UserProfile
-from .serializers import UserSerializer
+from .serializers import UserSerializer, UserSigninSerializer
 import requests
 import json
 from django.http import HttpResponse, JsonResponse
+from rest_framework.exceptions import ValidationError
+
 
 User = get_user_model()
 
@@ -69,36 +71,53 @@ class UserListAPIView(APIView):
 
 
 class UserCreateAPIView(APIView):
-    
+
     def post(self, request):
-        print(request.data)
-        
+        # print(request.data)
+
         try:
             serializer = UserSerializer(data=request.data)
             if serializer.is_valid(raise_exception=True):
                 user = serializer.save()
-                
-                #Call api and store data
+
+                # Call api and store data
                 url = "http://localhost:8006/api/register"
                 payload = json.dumps({
-                  "mobile": user.mobile,
-                  "password": user.password
+                    "mobile": user.mobile,
+                    "password": user.password,
+                    "email": user.email,
+                    "username": user.username,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                    "python_id": user.id
                 })
                 headers = {
-                  'Content-Type': 'application/json',
-                  'Cookie': 'connect.sid=s%3AKZ6aABLRkow-8uSkeEWNly7HAJqyUejU.ZX85pAXql9Bc9FyRDRHsPIBkbyRKG8XOddgKn71ymfw'
+                    'Content-Type': 'application/json',
+                    'Cookie': 'connect.sid=s%3AKZ6aABLRkow-8uSkeEWNly7HAJqyUejU.ZX85pAXql9Bc9FyRDRHsPIBkbyRKG8XOddgKn71ymfw'
                 }
-                
-                response = requests.request("POST", url, headers=headers, data=payload)
-                
-                
-    
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+                response_node = requests.request(
+                    "POST", url, headers=headers, data=payload)
+
+                # response_node = json.dumps(response_node.json(), indent=2)
+                # print(response_node)
+                # print(response_node.json()['insertedId'])
+                # breakpoint()
+                nodejs_id = response_node.json()['insertedId']
+
+                response_python = {
+                    "status": "success",
+                    "message": "Registration successful",
+                    "node_result": nodejs_id,
+                    "python_result": serializer.data,
+
+                }
+
+                return Response(response_python, status=status.HTTP_201_CREATED)
             else:
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except serializers.ValidationError as e:
             return Response({"errors": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
 
 
 class UserList(APIView):
@@ -120,3 +139,28 @@ class UserList(APIView):
         except requests.exceptions.RequestException as e:
             # Return a JsonResponse with an error message if there's a network problem
             return JsonResponse({'error': str(e)}, status=500)
+
+
+class UserSignin(APIView):
+    def post(self, request):
+        try:
+            serializer = UserSigninSerializer(data=request.data)
+            if serializer.is_valid(raise_exception=True):
+                
+                url = "http://localhost:8006/api/signin"
+                payload = json.dumps({
+                    "mobile": request.data['mobile'],
+                    "password": request.data['password'],
+                })
+                headers = {
+                    'Content-Type': 'application/json',
+                    'Cookie': 'connect.sid=s%3AKZ6aABLRkow-8uSkeEWNly7HAJqyUejU.ZX85pAXql9Bc9FyRDRHsPIBkbyRKG8XOddgKn71ymfw'
+                }
+                response_node = requests.post(url, headers=headers, data=payload)
+                
+                return JsonResponse(response_node.json(), status=response_node.status_code) 
+        except requests.exceptions.RequestException as e:
+            return JsonResponse({'error': str(e)}, status=500)
+        except ValidationError as e:
+            return JsonResponse({'errors': e.detail}, status=400)
+
